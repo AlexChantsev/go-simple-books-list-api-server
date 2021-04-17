@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"go-simple-books-list-api-server/models"
-	"go-simple-books-list-api-server/repository/book"
+	bookRepository "go-simple-books-list-api-server/repository/book"
 	"log"
 	"net/http"
 	"strconv"
@@ -42,9 +42,19 @@ func (c Controller) GetBook(db *sql.DB) http.HandlerFunc {
 		params := mux.Vars(r)
 
 		id, err := strconv.Atoi(params["id"])
-		logFatal(err)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-		book = bookRepo.GetBook(db, book, id)
+		book, err = bookRepo.GetBook(db, book, id)
+
+		if err != nil {
+			log.Println(err)
+			writeError(w, err)
+			return
+		}
 
 		addHeaders(w)
 		json.NewEncoder(w).Encode(book)
@@ -95,4 +105,13 @@ func (c Controller) RemoveBook(db *sql.DB) http.HandlerFunc {
 
 func addHeaders(w http.ResponseWriter) {
 	w.Header().Add("Content-Type", "application/json")
+}
+
+func writeError(w http.ResponseWriter, err error) {
+	addHeaders(w)
+	w.WriteHeader(http.StatusInternalServerError)
+
+	var model models.ErrorModel
+	model.ErrorMessage = err.Error()
+	json.NewEncoder(w).Encode(model)
 }
